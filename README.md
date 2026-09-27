@@ -25,7 +25,7 @@ PDF の文字抽出やページ画像化には <code>pdftotext</code>、<code>pd
 
 ## インストール
 
-GitHub リポジトリを Codex の Skills ディレクトリにクローンします。<code>OWNER/REPOSITORY</code> は公開先に合わせて置き換えてください。
+GitHub リポジトリを Codex の Skills ディレクトリにクローンします。
 
 ### Windows PowerShell
 
@@ -36,12 +36,19 @@ $skills = if ($env:CODEX_HOME) {
   Join-Path $env:USERPROFILE '.codex\skills'
 }
 New-Item -ItemType Directory -Force -Path $skills | Out-Null
-git clone https://github.com/OWNER/REPOSITORY.git (Join-Path $skills 'medical-exam-lualatex-answer')
+git clone https://github.com/halcyon7766/medical-exam-lualatex-answer.git (Join-Path $skills 'medical-exam-lualatex-answer')
 ~~~
 
 ### macOS / Linux
 
-リポジトリを <code>$CODEX_HOME/skills/medical-exam-lualatex-answer</code> に配置します。<code>CODEX_HOME</code> が未設定なら、<code>~/.codex/skills/medical-exam-lualatex-answer</code> を使います。
+次のコマンドでインストールできます。<code>CODEX_HOME</code> が未設定なら <code>~/.codex</code> を使います。
+
+~~~bash
+target="$HOME/.codex/skills/medical-exam-lualatex-answer"
+if [ -n "$CODEX_HOME" ]; then target="$CODEX_HOME/skills/medical-exam-lualatex-answer"; fi
+mkdir -p "$(dirname "$target")"
+git clone https://github.com/halcyon7766/medical-exam-lualatex-answer.git "$target"
+~~~
 
 インストール後、Codex で <code>$medical-exam-lualatex-answer</code> を呼び出してください。Skill が認識されない場合は Codex を再起動してください。
 
