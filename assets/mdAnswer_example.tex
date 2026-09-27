@@ -1,0 +1,608 @@
+\documentclass[a4paper,11pt]{article}
+\author{}
+
+% =========================================================
+% 日本語 + フォント
+% （LuaLaTeX 推奨。Noto Sans JP が入っていない場合は他の日本語フォントに変更）
+% =========================================================
+\usepackage[japanese, bidi=basic, provide=*]{babel}
+\usepackage{fontspec}
+
+% フォント設定（環境差を吸収するため、複数候補から自動選択）
+\newcommand{\SetJPFont}[1]{%
+  \babelfont{rm}{#1}%
+  \babelfont{sf}{#1}%
+  \babelfont{tt}{#1}%
+}
+\IfFontExistsTF{Noto Sans CJK JP}{%
+  \SetJPFont{Noto Sans CJK JP}%
+}{%
+  \IfFontExistsTF{Noto Sans JP}{%
+    \SetJPFont{Noto Sans JP}%
+  }{%
+    \IfFontExistsTF{IPAexGothic}{%
+      \SetJPFont{IPAexGothic}%
+    }{%
+      % どうしても見つからない場合の最終フォールバック（環境に合わせて編集）
+      \SetJPFont{Latin Modern Roman}%
+    }%
+  }%
+}
+
+% =========================================================
+% レイアウト / 基本パッケージ
+% =========================================================
+\usepackage[top=20mm, bottom=20mm, left=20mm, right=20mm]{geometry}
+\usepackage{fancyhdr}
+\setlength{\headheight}{14pt}
+
+% はみ出し対策（URLや長い単語があるときの保険）
+\setlength{\emergencystretch}{1em}
+
+\usepackage{xcolor}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{grffile} % 画像ファイル名にスペース/日本語が混ざる場合の安定化
+% \graphicspath{{figs/}} % 画像を tex と同じディレクトリに置く運用のため無効化（必要なら有効化）
+\usepackage{array}
+\usepackage{tabularx}
+
+\usepackage[explicit]{titlesec}
+\usepackage[skins, breakable]{tcolorbox}
+\usepackage{enumitem}
+\usepackage{tikz}
+\usepackage{etoolbox}
+\usepackage{xstring}
+
+% hyperref はできるだけ後ろで読み込む
+\usepackage{hyperref}
+\usepackage{bookmark}
+\hypersetup{
+  hidelinks,
+  unicode=true
+}
+
+% itemize/enumerate の余白を詰める（tcolorbox 内でも見やすい）
+\setlist[itemize]{leftmargin=*, itemsep=0.2em, topsep=0.2em}
+\setlist[enumerate]{leftmargin=*, itemsep=0.2em, topsep=0.2em}
+
+% =========================================================
+% 便利コマンド：丸数字（\circled{1} のように使用）
+% =========================================================
+\DeclareRobustCommand{\circled}[1]{\tikz[baseline=(char.base)]{
+  \node[shape=circle,draw,inner sep=1pt, minimum size=1em] (char) {\small #1};}}
+
+% =========================================================
+% 画像埋め込み（存在しない場合もコンパイルを落とさない）
+% 例：\SafeIncludeGraphics[width=0.9\linewidth]{figure_1.png}
+% =========================================================
+\newcommand{\SafeIncludeGraphics}[2][]{%
+  \IfFileExists{\detokenize{#2}}{%
+    \includegraphics[#1]{\detokenize{#2}}%
+  }{%
+    \begin{tcolorbox}[
+      colback=white,
+      colframe=red!60!black,
+      boxrule=0.4pt,
+      sharp corners,
+      left=1mm,right=1mm,top=1mm,bottom=1mm
+    ]
+      \textbf{[画像が見つかりません]}
+    \end{tcolorbox}%
+  }%
+}
+
+% =========================================================
+% 選択肢リスト（\item で記載）
+% 例：
+% \begin{ChoiceList}
+%   \item 選択肢A
+%   \item 選択肢B
+% \end{ChoiceList}
+% =========================================================
+\newenvironment{ChoiceList}{%
+  \begin{enumerate}[label=\alph*), leftmargin=*, itemsep=0.2em, topsep=0.2em]
+}{%
+  \end{enumerate}
+}
+
+% =========================================================
+% 図表・解説用の補助コマンド
+% =========================================================
+\newcommand{\ExamFigure}[3][0.72\linewidth]{%
+  \begin{center}
+    \SafeIncludeGraphics[width=#1]{#2}
+    \ifstrempty{#3}{}{%
+      \par\vspace{1mm}{\small\textbf{図：} #3}%
+    }%
+  \end{center}%
+}
+
+\newcommand{\ExplainHeading}[1]{%
+  \par\medskip\noindent
+  \begingroup
+  \setlength{\fboxsep}{2pt}%
+  \colorbox{primaryColor}{\textcolor{white}{\bfseries\strut\ #1\ }}%
+  \endgroup
+  \par\smallskip
+}
+
+\newcommand{\ChoiceExplanationSymbol}[1]{%
+  \ifstrequal{#1}{correct}{$\circ$}{$\times$}%
+}
+
+\newcommand{\ChoiceExplanation}[4]{%
+  \par\smallskip\noindent
+  {\small
+    \ChoiceExplanationSymbol{#2}\hspace{0.45em}%
+    {\bfseries #1\quad #3}\par
+    \noindent #4\par
+  }%
+}
+
+% =========================================================
+% ドキュメント情報（ここだけ編集すればOK）
+% =========================================================
+\newcommand{\ExamSubject}{○○学}
+\newcommand{\ExamHeaderLeft}{M○ \ExamSubject\ 本試験 解答・解説}
+\newcommand{\ExamHeaderRight}{令和X年X月X日 実施}
+
+\newcommand{\ExamTitleMain}{M○ \ExamSubject\ 本試験}
+\newcommand{\ExamTitleSub}{令和X年度 解答・解説}
+\newcommand{\ExamDate}{令和X年X月X日}
+\newcommand{\UsedModel}{使用したモデル名を記載}
+
+% =========================================================
+% テーマ（色）
+% \ExamSubject の科目名に応じて自動選択されます。
+% 科目を追加する場合は \ApplySubjectColorTheme の対応表を編集してください。
+% =========================================================
+\newcommand{\SetExamColorTheme}[7]{%
+  \definecolor{primaryColor}{HTML}{#1}%      メインカラー
+  \definecolor{boxBgProblem}{HTML}{#2}%      問題ボックス背景
+  \definecolor{boxFrameProblem}{HTML}{#3}%   問題ボックス枠
+  \definecolor{boxBgAnswer}{HTML}{#4}%       解答ボックス背景
+  \definecolor{boxFrameAnswer}{HTML}{#5}%    解答ボックス枠
+  \definecolor{boxBgExplain}{HTML}{#6}%      解説ボックス背景
+  \definecolor{boxBarExplain}{HTML}{#7}%     解説ボックス左線
+}
+
+\newcommand{\UseColorSetSkyBlue}{\SetExamColorTheme{0078C8}{FFFFFF}{000000}{EBF5FF}{B4E1FF}{F5F5F5}{646464}}
+\newcommand{\UseColorSetTeal}{\SetExamColorTheme{0096A0}{FFFFFF}{000000}{EBFAFA}{B4EBEE}{F5F5F5}{646464}}
+\newcommand{\UseColorSetEmerald}{\SetExamColorTheme{00965A}{FFFFFF}{000000}{ECFAF2}{B9F0D2}{F5F5F5}{646464}}
+\newcommand{\UseColorSetLime}{\SetExamColorTheme{5AAA00}{FFFFFF}{000000}{F5FCEB}{DCF5BE}{F5F5F5}{646464}}
+\newcommand{\UseColorSetPurple}{\SetExamColorTheme{785AC8}{FFFFFF}{000000}{F5F0FF}{DCCDFA}{F5F5F5}{646464}}
+\newcommand{\UseColorSetMagenta}{\SetExamColorTheme{C83C96}{FFFFFF}{000000}{FFEEFA}{FAC8EB}{F5F5F5}{646464}}
+\newcommand{\UseColorSetOrange}{\SetExamColorTheme{E67800}{FFFFFF}{000000}{FFF4EB}{FFD7B4}{F5F5F5}{646464}}
+\newcommand{\UseColorSetRed}{\SetExamColorTheme{DC3C3C}{FFFFFF}{000000}{FFEEEE}{FFC8C8}{F5F5F5}{646464}}
+\newcommand{\UseColorSetBrown}{\SetExamColorTheme{AA643C}{FFFFFF}{000000}{FCF5F0}{EBD2C3}{F5F5F5}{646464}}
+\newcommand{\UseColorSetSlateGray}{\SetExamColorTheme{5A6E82}{FFFFFF}{000000}{F2F6FA}{D2DCE6}{F5F5F5}{646464}}
+\newcommand{\UseColorSetNavy}{\SetExamColorTheme{1E46A0}{FFFFFF}{000000}{ECF2FF}{BED2FF}{F5F5F5}{646464}}
+\newcommand{\UseColorSetGold}{\SetExamColorTheme{C89600}{FFFFFF}{000000}{FFFAEB}{FFEBA0}{F5F5F5}{646464}}
+
+\newif\ifSubjectThemeMatched
+\newcommand{\ApplySubjectThemeExact}[2]{%
+  \ifstrequal{\ExamSubject}{#1}{#2\SubjectThemeMatchedtrue}{}%
+}
+\newcommand{\ApplySubjectThemeContains}[2]{%
+  \ifSubjectThemeMatched\else
+    \IfSubStr{\ExamSubject}{#1}{#2\SubjectThemeMatchedtrue}{}%
+  \fi
+}
+\newcommand{\SetExamSubject}[1]{%
+  \renewcommand{\ExamSubject}{#1}%
+  \ApplySubjectColorTheme
+}
+\newcommand{\ApplySubjectColorTheme}{%
+  \UseColorSetSkyBlue% default
+  \SubjectThemeMatchedfalse%
+  % Exact match first.
+  \ApplySubjectThemeExact{医学一般}{\UseColorSetSkyBlue}%
+  \ApplySubjectThemeExact{医学総論}{\UseColorSetSkyBlue}%
+  \ApplySubjectThemeExact{医療系総合}{\UseColorSetSkyBlue}%
+  \ApplySubjectThemeExact{総合医学}{\UseColorSetSkyBlue}%
+  \ApplySubjectThemeExact{症候学}{\UseColorSetSlateGray}%
+  \ApplySubjectThemeExact{症候・病態学}{\UseColorSetSlateGray}%
+  \ApplySubjectThemeExact{症候・病態学演習}{\UseColorSetSlateGray}%
+  \ApplySubjectThemeExact{検査診断学}{\UseColorSetGold}%
+  \ApplySubjectThemeExact{臨床検査医学}{\UseColorSetGold}%
+  \ApplySubjectThemeExact{診断学}{\UseColorSetGold}%
+  \ApplySubjectThemeExact{基礎医学}{\UseColorSetSlateGray}%
+  \ApplySubjectThemeExact{解剖学}{\UseColorSetBrown}%
+  \ApplySubjectThemeExact{解剖学I}{\UseColorSetBrown}%
+  \ApplySubjectThemeExact{解剖学II}{\UseColorSetBrown}%
+  \ApplySubjectThemeExact{組織学}{\UseColorSetPurple}%
+  \ApplySubjectThemeExact{組織細胞生物学}{\UseColorSetPurple}%
+  \ApplySubjectThemeExact{組織細胞生物学総論・遺伝学・発生学}{\UseColorSetPurple}%
+  \ApplySubjectThemeExact{組織細胞生物学各論}{\UseColorSetPurple}%
+  \ApplySubjectThemeExact{発生学}{\UseColorSetPurple}%
+  \ApplySubjectThemeExact{遺伝学}{\UseColorSetPurple}%
+  \ApplySubjectThemeExact{生理学}{\UseColorSetSkyBlue}%
+  \ApplySubjectThemeExact{生理学I}{\UseColorSetSkyBlue}%
+  \ApplySubjectThemeExact{生理学II}{\UseColorSetSkyBlue}%
+  \ApplySubjectThemeExact{生化学}{\UseColorSetGold}%
+  \ApplySubjectThemeExact{生化学I}{\UseColorSetGold}%
+  \ApplySubjectThemeExact{生化学II}{\UseColorSetGold}%
+  \ApplySubjectThemeExact{分子生物学}{\UseColorSetGold}%
+  \ApplySubjectThemeExact{薬理学}{\UseColorSetOrange}%
+  \ApplySubjectThemeExact{薬理学I}{\UseColorSetOrange}%
+  \ApplySubjectThemeExact{薬理学II}{\UseColorSetOrange}%
+  \ApplySubjectThemeExact{病理学}{\UseColorSetBrown}%
+  \ApplySubjectThemeExact{病理学総論}{\UseColorSetBrown}%
+  \ApplySubjectThemeExact{病理学各論}{\UseColorSetBrown}%
+  \ApplySubjectThemeExact{微生物学}{\UseColorSetTeal}%
+  \ApplySubjectThemeExact{免疫学}{\UseColorSetEmerald}%
+  \ApplySubjectThemeExact{寄生虫学}{\UseColorSetLime}%
+  \ApplySubjectThemeExact{法医学}{\UseColorSetBrown}%
+  \ApplySubjectThemeExact{臨床医学}{\UseColorSetNavy}%
+  \ApplySubjectThemeExact{内科学}{\UseColorSetNavy}%
+  \ApplySubjectThemeExact{内科}{\UseColorSetNavy}%
+  \ApplySubjectThemeExact{総合内科学}{\UseColorSetNavy}%
+  \ApplySubjectThemeExact{循環器病学}{\UseColorSetRed}%
+  \ApplySubjectThemeExact{循環器内科学}{\UseColorSetRed}%
+  \ApplySubjectThemeExact{循環器内科}{\UseColorSetRed}%
+  \ApplySubjectThemeExact{呼吸器病学}{\UseColorSetTeal}%
+  \ApplySubjectThemeExact{呼吸器内科学}{\UseColorSetTeal}%
+  \ApplySubjectThemeExact{呼吸器内科}{\UseColorSetTeal}%
+  \ApplySubjectThemeExact{消化器病学}{\UseColorSetEmerald}%
+  \ApplySubjectThemeExact{消化器内科学}{\UseColorSetEmerald}%
+  \ApplySubjectThemeExact{消化器内科}{\UseColorSetEmerald}%
+  \ApplySubjectThemeExact{腎臓病学}{\UseColorSetNavy}%
+  \ApplySubjectThemeExact{腎臓内科学}{\UseColorSetNavy}%
+  \ApplySubjectThemeExact{腎臓内科}{\UseColorSetNavy}%
+  \ApplySubjectThemeExact{腎・泌尿器・膠原病学}{\UseColorSetNavy}%
+  \ApplySubjectThemeExact{内分泌・代謝病学}{\UseColorSetOrange}%
+  \ApplySubjectThemeExact{内分泌代謝学}{\UseColorSetOrange}%
+  \ApplySubjectThemeExact{糖尿病・内分泌代謝内科}{\UseColorSetOrange}%
+  \ApplySubjectThemeExact{血液学}{\UseColorSetMagenta}%
+  \ApplySubjectThemeExact{血液内科学}{\UseColorSetMagenta}%
+  \ApplySubjectThemeExact{腫瘍学}{\UseColorSetRed}%
+  \ApplySubjectThemeExact{腫瘍・血液学}{\UseColorSetMagenta}%
+  \ApplySubjectThemeExact{感染症学}{\UseColorSetEmerald}%
+  \ApplySubjectThemeExact{感染症内科学}{\UseColorSetEmerald}%
+  \ApplySubjectThemeExact{膠原病学}{\UseColorSetPurple}%
+  \ApplySubjectThemeExact{リウマチ・膠原病学}{\UseColorSetPurple}%
+  \ApplySubjectThemeExact{脳神経病学}{\UseColorSetNavy}%
+  \ApplySubjectThemeExact{神経内科学}{\UseColorSetNavy}%
+  \ApplySubjectThemeExact{脳神経内科学}{\UseColorSetNavy}%
+  \ApplySubjectThemeExact{老年医学}{\UseColorSetSlateGray}%
+  \ApplySubjectThemeExact{外科学}{\UseColorSetRed}%
+  \ApplySubjectThemeExact{外科}{\UseColorSetRed}%
+  \ApplySubjectThemeExact{一般外科学}{\UseColorSetRed}%
+  \ApplySubjectThemeExact{消化器外科学}{\UseColorSetRed}%
+  \ApplySubjectThemeExact{心臓血管外科学}{\UseColorSetRed}%
+  \ApplySubjectThemeExact{呼吸器外科学}{\UseColorSetTeal}%
+  \ApplySubjectThemeExact{脳神経外科学}{\UseColorSetNavy}%
+  \ApplySubjectThemeExact{小児外科学}{\UseColorSetSkyBlue}%
+  \ApplySubjectThemeExact{整形外科学}{\UseColorSetEmerald}%
+  \ApplySubjectThemeExact{形成外科学}{\UseColorSetBrown}%
+  \ApplySubjectThemeExact{皮膚・形成外科学}{\UseColorSetBrown}%
+  \ApplySubjectThemeExact{麻酔科学}{\UseColorSetOrange}%
+  \ApplySubjectThemeExact{救急医学}{\UseColorSetRed}%
+  \ApplySubjectThemeExact{救命救急医学}{\UseColorSetRed}%
+  \ApplySubjectThemeExact{集中治療医学}{\UseColorSetRed}%
+  \ApplySubjectThemeExact{リハビリテーション医学}{\UseColorSetLime}%
+  \ApplySubjectThemeExact{再生・移植医学}{\UseColorSetLime}%
+  \ApplySubjectThemeExact{小児医学}{\UseColorSetSkyBlue}%
+  \ApplySubjectThemeExact{小児科学}{\UseColorSetSkyBlue}%
+  \ApplySubjectThemeExact{小児科}{\UseColorSetSkyBlue}%
+  \ApplySubjectThemeExact{産科婦人科学}{\UseColorSetMagenta}%
+  \ApplySubjectThemeExact{産婦人科学}{\UseColorSetMagenta}%
+  \ApplySubjectThemeExact{産婦人科}{\UseColorSetMagenta}%
+  \ApplySubjectThemeExact{産科学}{\UseColorSetMagenta}%
+  \ApplySubjectThemeExact{婦人科学}{\UseColorSetMagenta}%
+  \ApplySubjectThemeExact{精神医学}{\UseColorSetPurple}%
+  \ApplySubjectThemeExact{精神科}{\UseColorSetPurple}%
+  \ApplySubjectThemeExact{皮膚科学}{\UseColorSetBrown}%
+  \ApplySubjectThemeExact{皮膚科}{\UseColorSetBrown}%
+  \ApplySubjectThemeExact{眼科学}{\UseColorSetSkyBlue}%
+  \ApplySubjectThemeExact{眼科}{\UseColorSetSkyBlue}%
+  \ApplySubjectThemeExact{耳鼻咽喉科学}{\UseColorSetTeal}%
+  \ApplySubjectThemeExact{耳鼻咽喉科}{\UseColorSetTeal}%
+  \ApplySubjectThemeExact{頭頸部病学}{\UseColorSetTeal}%
+  \ApplySubjectThemeExact{頭頸部外科学}{\UseColorSetTeal}%
+  \ApplySubjectThemeExact{泌尿器科学}{\UseColorSetNavy}%
+  \ApplySubjectThemeExact{泌尿器科}{\UseColorSetNavy}%
+  \ApplySubjectThemeExact{放射線医学}{\UseColorSetSlateGray}%
+  \ApplySubjectThemeExact{放射線科学}{\UseColorSetSlateGray}%
+  \ApplySubjectThemeExact{放射線科}{\UseColorSetSlateGray}%
+  \ApplySubjectThemeExact{社会医学}{\UseColorSetLime}%
+  \ApplySubjectThemeExact{公衆衛生学}{\UseColorSetLime}%
+  \ApplySubjectThemeExact{衛生学}{\UseColorSetLime}%
+  \ApplySubjectThemeExact{疫学}{\UseColorSetLime}%
+  \ApplySubjectThemeExact{医療情報学}{\UseColorSetSlateGray}%
+  \ApplySubjectThemeExact{医療情報社会学}{\UseColorSetSlateGray}%
+  \ApplySubjectThemeExact{医療倫理学}{\UseColorSetNavy}%
+  \ApplySubjectThemeExact{医療安全学}{\UseColorSetSlateGray}%
+  \ApplySubjectThemeExact{看護学}{\UseColorSetSkyBlue}%
+  \ApplySubjectThemeExact{保健学}{\UseColorSetLime}%
+  % If the subject name includes extra labels such as grade, exam type, or year,
+  % fall back to longest-subject substring matching.
+  \ifSubjectThemeMatched\else
+    \ApplySubjectThemeContains{組織細胞生物学総論・遺伝学・発生学}{\UseColorSetPurple}%
+    \ApplySubjectThemeContains{リハビリテーション医学}{\UseColorSetLime}%
+    \ApplySubjectThemeContains{糖尿病・内分泌代謝内科}{\UseColorSetOrange}%
+    \ApplySubjectThemeContains{腎・泌尿器・膠原病学}{\UseColorSetNavy}%
+    \ApplySubjectThemeContains{リウマチ・膠原病学}{\UseColorSetPurple}%
+    \ApplySubjectThemeContains{組織細胞生物学各論}{\UseColorSetPurple}%
+    \ApplySubjectThemeContains{症候・病態学演習}{\UseColorSetSlateGray}%
+    \ApplySubjectThemeContains{内分泌・代謝病学}{\UseColorSetOrange}%
+    \ApplySubjectThemeContains{皮膚・形成外科学}{\UseColorSetBrown}%
+    \ApplySubjectThemeContains{医療情報社会学}{\UseColorSetSlateGray}%
+    \ApplySubjectThemeContains{再生・移植医学}{\UseColorSetLime}%
+    \ApplySubjectThemeContains{心臓血管外科学}{\UseColorSetRed}%
+    \ApplySubjectThemeContains{組織細胞生物学}{\UseColorSetPurple}%
+    \ApplySubjectThemeContains{感染症内科学}{\UseColorSetEmerald}%
+    \ApplySubjectThemeContains{救命救急医学}{\UseColorSetRed}%
+    \ApplySubjectThemeContains{呼吸器外科学}{\UseColorSetTeal}%
+    \ApplySubjectThemeContains{呼吸器内科学}{\UseColorSetTeal}%
+    \ApplySubjectThemeContains{産科婦人科学}{\UseColorSetMagenta}%
+    \ApplySubjectThemeContains{耳鼻咽喉科学}{\UseColorSetTeal}%
+    \ApplySubjectThemeContains{腫瘍・血液学}{\UseColorSetMagenta}%
+    \ApplySubjectThemeContains{集中治療医学}{\UseColorSetRed}%
+    \ApplySubjectThemeContains{循環器内科学}{\UseColorSetRed}%
+    \ApplySubjectThemeContains{消化器外科学}{\UseColorSetRed}%
+    \ApplySubjectThemeContains{消化器内科学}{\UseColorSetEmerald}%
+    \ApplySubjectThemeContains{症候・病態学}{\UseColorSetSlateGray}%
+    \ApplySubjectThemeContains{頭頸部外科学}{\UseColorSetTeal}%
+    \ApplySubjectThemeContains{内分泌代謝学}{\UseColorSetOrange}%
+    \ApplySubjectThemeContains{脳神経外科学}{\UseColorSetNavy}%
+    \ApplySubjectThemeContains{脳神経内科学}{\UseColorSetNavy}%
+    \ApplySubjectThemeContains{臨床検査医学}{\UseColorSetGold}%
+    \ApplySubjectThemeContains{医療安全学}{\UseColorSetSlateGray}%
+    \ApplySubjectThemeContains{医療系総合}{\UseColorSetSkyBlue}%
+    \ApplySubjectThemeContains{医療情報学}{\UseColorSetSlateGray}%
+    \ApplySubjectThemeContains{医療倫理学}{\UseColorSetNavy}%
+    \ApplySubjectThemeContains{一般外科学}{\UseColorSetRed}%
+    \ApplySubjectThemeContains{解剖学II}{\UseColorSetBrown}%
+    \ApplySubjectThemeContains{形成外科学}{\UseColorSetBrown}%
+    \ApplySubjectThemeContains{血液内科学}{\UseColorSetMagenta}%
+    \ApplySubjectThemeContains{検査診断学}{\UseColorSetGold}%
+    \ApplySubjectThemeContains{呼吸器内科}{\UseColorSetTeal}%
+    \ApplySubjectThemeContains{呼吸器病学}{\UseColorSetTeal}%
+    \ApplySubjectThemeContains{公衆衛生学}{\UseColorSetLime}%
+    \ApplySubjectThemeContains{産婦人科学}{\UseColorSetMagenta}%
+    \ApplySubjectThemeContains{耳鼻咽喉科}{\UseColorSetTeal}%
+    \ApplySubjectThemeContains{循環器内科}{\UseColorSetRed}%
+    \ApplySubjectThemeContains{循環器病学}{\UseColorSetRed}%
+    \ApplySubjectThemeContains{小児外科学}{\UseColorSetSkyBlue}%
+    \ApplySubjectThemeContains{消化器内科}{\UseColorSetEmerald}%
+    \ApplySubjectThemeContains{消化器病学}{\UseColorSetEmerald}%
+    \ApplySubjectThemeContains{神経内科学}{\UseColorSetNavy}%
+    \ApplySubjectThemeContains{腎臓内科学}{\UseColorSetNavy}%
+    \ApplySubjectThemeContains{整形外科学}{\UseColorSetEmerald}%
+    \ApplySubjectThemeContains{生化学II}{\UseColorSetGold}%
+    \ApplySubjectThemeContains{生理学II}{\UseColorSetSkyBlue}%
+    \ApplySubjectThemeContains{総合内科学}{\UseColorSetNavy}%
+    \ApplySubjectThemeContains{頭頸部病学}{\UseColorSetTeal}%
+    \ApplySubjectThemeContains{脳神経病学}{\UseColorSetNavy}%
+    \ApplySubjectThemeContains{泌尿器科学}{\UseColorSetNavy}%
+    \ApplySubjectThemeContains{病理学各論}{\UseColorSetBrown}%
+    \ApplySubjectThemeContains{病理学総論}{\UseColorSetBrown}%
+    \ApplySubjectThemeContains{分子生物学}{\UseColorSetGold}%
+    \ApplySubjectThemeContains{放射線医学}{\UseColorSetSlateGray}%
+    \ApplySubjectThemeContains{放射線科学}{\UseColorSetSlateGray}%
+    \ApplySubjectThemeContains{薬理学II}{\UseColorSetOrange}%
+    \ApplySubjectThemeContains{医学一般}{\UseColorSetSkyBlue}%
+    \ApplySubjectThemeContains{医学総論}{\UseColorSetSkyBlue}%
+    \ApplySubjectThemeContains{解剖学I}{\UseColorSetBrown}%
+    \ApplySubjectThemeContains{感染症学}{\UseColorSetEmerald}%
+    \ApplySubjectThemeContains{基礎医学}{\UseColorSetSlateGray}%
+    \ApplySubjectThemeContains{寄生虫学}{\UseColorSetLime}%
+    \ApplySubjectThemeContains{救急医学}{\UseColorSetRed}%
+    \ApplySubjectThemeContains{産婦人科}{\UseColorSetMagenta}%
+    \ApplySubjectThemeContains{社会医学}{\UseColorSetLime}%
+    \ApplySubjectThemeContains{小児医学}{\UseColorSetSkyBlue}%
+    \ApplySubjectThemeContains{小児科学}{\UseColorSetSkyBlue}%
+    \ApplySubjectThemeContains{腎臓内科}{\UseColorSetNavy}%
+    \ApplySubjectThemeContains{腎臓病学}{\UseColorSetNavy}%
+    \ApplySubjectThemeContains{生化学I}{\UseColorSetGold}%
+    \ApplySubjectThemeContains{生理学I}{\UseColorSetSkyBlue}%
+    \ApplySubjectThemeContains{精神医学}{\UseColorSetPurple}%
+    \ApplySubjectThemeContains{総合医学}{\UseColorSetSkyBlue}%
+    \ApplySubjectThemeContains{泌尿器科}{\UseColorSetNavy}%
+    \ApplySubjectThemeContains{皮膚科学}{\UseColorSetBrown}%
+    \ApplySubjectThemeContains{微生物学}{\UseColorSetTeal}%
+    \ApplySubjectThemeContains{婦人科学}{\UseColorSetMagenta}%
+    \ApplySubjectThemeContains{放射線科}{\UseColorSetSlateGray}%
+    \ApplySubjectThemeContains{麻酔科学}{\UseColorSetOrange}%
+    \ApplySubjectThemeContains{薬理学I}{\UseColorSetOrange}%
+    \ApplySubjectThemeContains{臨床医学}{\UseColorSetNavy}%
+    \ApplySubjectThemeContains{老年医学}{\UseColorSetSlateGray}%
+    \ApplySubjectThemeContains{膠原病学}{\UseColorSetPurple}%
+    \ApplySubjectThemeContains{遺伝学}{\UseColorSetPurple}%
+    \ApplySubjectThemeContains{衛生学}{\UseColorSetLime}%
+    \ApplySubjectThemeContains{解剖学}{\UseColorSetBrown}%
+    \ApplySubjectThemeContains{外科学}{\UseColorSetRed}%
+    \ApplySubjectThemeContains{看護学}{\UseColorSetSkyBlue}%
+    \ApplySubjectThemeContains{眼科学}{\UseColorSetSkyBlue}%
+    \ApplySubjectThemeContains{血液学}{\UseColorSetMagenta}%
+    \ApplySubjectThemeContains{産科学}{\UseColorSetMagenta}%
+    \ApplySubjectThemeContains{腫瘍学}{\UseColorSetRed}%
+    \ApplySubjectThemeContains{小児科}{\UseColorSetSkyBlue}%
+    \ApplySubjectThemeContains{症候学}{\UseColorSetSlateGray}%
+    \ApplySubjectThemeContains{診断学}{\UseColorSetGold}%
+    \ApplySubjectThemeContains{生化学}{\UseColorSetGold}%
+    \ApplySubjectThemeContains{生理学}{\UseColorSetSkyBlue}%
+    \ApplySubjectThemeContains{精神科}{\UseColorSetPurple}%
+    \ApplySubjectThemeContains{組織学}{\UseColorSetPurple}%
+    \ApplySubjectThemeContains{内科学}{\UseColorSetNavy}%
+    \ApplySubjectThemeContains{発生学}{\UseColorSetPurple}%
+    \ApplySubjectThemeContains{皮膚科}{\UseColorSetBrown}%
+    \ApplySubjectThemeContains{病理学}{\UseColorSetBrown}%
+    \ApplySubjectThemeContains{保健学}{\UseColorSetLime}%
+    \ApplySubjectThemeContains{法医学}{\UseColorSetBrown}%
+    \ApplySubjectThemeContains{免疫学}{\UseColorSetEmerald}%
+    \ApplySubjectThemeContains{薬理学}{\UseColorSetOrange}%
+    \ApplySubjectThemeContains{疫学}{\UseColorSetLime}%
+    \ApplySubjectThemeContains{外科}{\UseColorSetRed}%
+    \ApplySubjectThemeContains{眼科}{\UseColorSetSkyBlue}%
+    \ApplySubjectThemeContains{内科}{\UseColorSetNavy}%
+  \fi
+}
+\ApplySubjectColorTheme
+\AtBeginDocument{\ApplySubjectColorTheme}
+
+% =========================================================
+% セクション見出しデザイン
+% =========================================================
+\titleformat{\section}
+  {\normalfont\Large\bfseries\color{white}}
+  {\thesection}{1em}
+  {\begin{tcolorbox}[
+      colback=primaryColor,
+      colframe=primaryColor,
+      colupper=white,
+      boxrule=0pt,
+      arc=0mm,
+      left=4mm, right=4mm, top=2mm, bottom=2mm
+    ]
+    #1
+  \end{tcolorbox}}
+
+\titleformat{\subsection}
+  {\normalfont\large\bfseries\color{primaryColor}}
+  {\thesubsection}{1em}
+  {#1}
+  [\vspace{2pt}\hrule height 1pt]
+
+% =========================================================
+% ボックス環境（問題・解答・解説）
+% =========================================================
+\newtcolorbox{QuestionBox}[1][]{
+  enhanced, breakable,
+  colback=boxBgProblem,
+  colframe=boxFrameProblem,
+  coltitle=black,
+  title={問題},
+  fonttitle=\bfseries,
+  attach boxed title to top left={xshift=5mm, yshift*=-3mm},
+  boxed title style={colback=white, colframe=black},
+  sharp corners,
+  boxrule=1pt,
+  top=6mm, bottom=4mm, left=4mm, right=4mm,
+  #1
+}
+
+\newtcolorbox{AnswerBox}[1][]{
+  enhanced, breakable,
+  colback=boxBgAnswer,
+  colframe=boxFrameAnswer,
+  coltitle=white,
+  title={解答},
+  fonttitle=\bfseries,
+  attach boxed title to top left={xshift=5mm, yshift*=-3mm},
+  boxed title style={colback=primaryColor, colframe=primaryColor},
+  sharp corners,
+  boxrule=1pt,
+  top=6mm, bottom=4mm, left=6mm, right=4mm,
+  #1
+}
+
+\newtcolorbox{ExplanationBox}[1][]{
+  enhanced, breakable,
+  colback=boxBgExplain,
+  colframe=boxBgExplain,
+  borderline west={4pt}{0pt}{boxBarExplain},
+  coltitle=black,
+  title={解説},
+  fonttitle=\bfseries,
+  attach boxed title to top left={xshift=5mm, yshift*=-3mm},
+  boxed title style={colback=boxBgExplain, colframe=boxBgExplain},
+  sharp corners,
+  boxrule=0pt,
+  top=6mm, bottom=4mm, left=6mm, right=4mm,
+  #1
+}
+
+\newtcolorbox{BasicMatterBox}[1][]{
+  enhanced, breakable,
+  colback=boxBgAnswer,
+  colframe=boxFrameAnswer,
+  fontupper=\small,
+  sharp corners,
+  boxrule=0.8pt,
+  top=2mm, bottom=2mm, left=3mm, right=3mm,
+  #1
+}
+
+\newcommand{\BasicMatterTitle}[1]{%
+  \par\noindent{\small\bfseries #1}\par\smallskip
+}
+
+% --- ヘッダー・フッター ---
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\ExamHeaderLeft}
+\fancyhead[R]{\ExamHeaderRight}
+\fancyfoot[C]{\thepage}
+
+\title{\Huge \textbf{\ExamTitleMain}\\ \Large \ExamTitleSub}
+\date{試験日：\ExamDate\\[1em]
+\small (使用モデル: \UsedModel)}
+
+% =========================================================
+% 本文
+% =========================================================
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+
+% ======================================================================
+% ここから下に「セクション」「問題」を追加
+% ======================================================================
+
+\section{領域名 (担当: 〇〇)}
+
+% --- 問題テンプレ ---
+\begin{QuestionBox}
+  \textbf{問題1} \\
+  読み取った問題文を、意味を保ったまま自然な段落に整形して記載する。元資料の改行位置を機械的に再現しない。明らかなOCR誤字は修正し、曖昧な箇所は判読不能であることを明示する。
+
+  % --- 図・写真がある場合は、画像を .tex と同じ場所に置いて次のように挿入 ---
+  % \ExamFigure[0.9\linewidth]{figure_1.png}{短いキャプション}
+
+  % --- 選択肢（\item で記載） ---
+  \begin{ChoiceList}
+    \item 選択肢A
+    \item 選択肢B
+    \item 選択肢C
+    \item 選択肢D
+    \item 選択肢E
+  \end{ChoiceList}
+\end{QuestionBox}
+
+\begin{AnswerBox}
+  \textbf{正解：} a \\
+  （記述式なら：キーワード、結論、数値、鑑別などを簡潔に）
+\end{AnswerBox}
+
+\begin{ExplanationBox}
+  % 画像・病理・検査値問題の場合のみ記載する。
+  % \ExplainHeading{画像・病理・検査所見の読み取り}
+  % 画像や検査値から何が読み取れるかを、診断に直結する所見を中心に説明する。
+
+  \ExplainHeading{解法の要点}
+  この問題で問われている本質を2〜4文で説明する。単なる暗記ではなく、機序・病態も使って「なぜその選択肢になるのか」が分かるようにする。
+
+  \ExplainHeading{選択肢解説}
+  \ChoiceExplanation{a}{correct}{選択肢名}{正しい理由を簡潔に述べ、この選択肢が指す疾患・病態・検査・治療・用語を短く解説する。選択肢本文を言い換えて繰り返さない。}
+  \ChoiceExplanation{b}{wrong}{選択肢名}{誤りである理由を説明する。必要なら「これは〇〇でみられる」「△△と混同しやすい」のように補足する。}
+  \ChoiceExplanation{c}{wrong}{選択肢名}{同様に、違う理由とこの選択肢から学ぶべき周辺知識を簡潔に説明する。}
+
+  \begin{BasicMatterBox}
+    \BasicMatterTitle{基本事項}
+    \begin{itemize}[leftmargin=1.2em]
+      \item この問題を解くために必要な周辺知識を、CBTや国試で問われやすいポイント中心に整理する。
+      \item 似ている疾患・所見・用語との違い、試験で間違えやすいポイントを明確にする。
+      \item 難しい専門用語は使ってよいが、意味が分かるように短く補足する。
+    \end{itemize}
+  \end{BasicMatterBox}
+\end{ExplanationBox}
+
+% --- 追加の問題は QuestionBox / AnswerBox / ExplanationBox を繰り返す ---
+
+\end{document}

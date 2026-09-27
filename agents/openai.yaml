@@ -1,0 +1,4 @@
+interface:
+  display_name: "Medical Exam Answer"
+  short_description: "医学試験のPDFや画像、MarkdownからLuaLaTeXを用いて解答PDFを作成"
+  default_prompt: "Use $medical-exam-lualatex-answer to convert a Japanese medical exam PDF, scanned PDF, image set, or Markdown file into a compile-ready LuaLaTeX answer and explanation document. Use YomiToku for scanned/layout-heavy PDFs and figure extraction, then use the bundled subject-themed template unless the user provides a custom style sample."
